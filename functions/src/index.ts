@@ -47,3 +47,37 @@ export const createNextScheduledTodo = functions.firestore
       prevScheduledTodoId: prev.id,
     });
   });
+
+export const deleteNextScheduledTodo = functions.firestore
+  .document("todos/{todoId}")
+  .onUpdate(async (change, context) => {
+    const prev = change.before;
+    const prevData = prev.data();
+    const next = change.after;
+    const nextData = next.data();
+
+    // For now it only supports todos that repeat every day
+    const repeats =
+      prevData.repeat === nextData.repeat && nextData.repeat === "everyday";
+
+    const markedNotDone = prevData.done && !nextData.done;
+
+    if (!markedNotDone || !repeats) return null;
+
+    const firestore = admin.firestore();
+
+    // Check if the next todo has already been created
+    const nextTodo = await firestore
+      .collection("todos")
+      .where("prevScheduledTodoId", "==", prev.id)
+      .get();
+
+    // If next todo has not been already created then do nothing
+    if (nextTodo.empty) return null;
+
+    const id = nextTodo.docs[0].id;
+
+    console.log("deleting next scheduled todo", id);
+    // Delete the next todo
+    return firestore.collection("todos").doc(id).delete();
+  });
