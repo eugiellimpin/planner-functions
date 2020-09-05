@@ -1,6 +1,5 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { addDays, startOfDay } from "date-fns";
 
 admin.initializeApp();
 
@@ -31,12 +30,13 @@ export const createNextScheduledTodo = functions.firestore
     // If next todo has already been created then do nothing
     if (!nextTodo.empty) return null;
 
+    const oneDayInSeconds = 60 * 60 * 24;
     // Create the next todo tomorrow
-    const tomorrow = addDays(startOfDay(prevData.dueDate.toDate()), 1);
     const dueDate = new admin.firestore.Timestamp(
-      Math.floor(tomorrow.getTime() / 1000),
+      prevData.dueDate.seconds + oneDayInSeconds,
       0
     );
+
     return firestore.collection("todos").add({
       ...prevData,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
